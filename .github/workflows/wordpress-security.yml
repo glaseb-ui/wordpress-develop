@@ -1,0 +1,47 @@
+name: WordPress Security Scan
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  semgrep:
+    name: Semgrep WordPress Scan
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: WordPress-Sicherheitsanalyse ausführen
+        run: >
+          semgrep scan
+          --config=p/wordpress
+          --config=p/php
+          --config=p/security-audit
+          --exclude="vendor"
+          --exclude="node_modules"
+          --sarif
+          --output=semgrep-wp.sarif
+
+      - name: Bericht als Download-Artefakt speichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-wp-report
+          path: semgrep-wp.sarif
+
+      - name: Ergebnisse in GitHub Security hochladen
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-wp.sarif
